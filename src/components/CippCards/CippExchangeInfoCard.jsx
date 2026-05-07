@@ -10,8 +10,8 @@ import {
   CircularProgress,
   Alert,
 } from "@mui/material";
-import { PropertyList } from "/src/components/property-list";
-import { PropertyListItem } from "/src/components/property-list-item";
+import { PropertyList } from "../property-list";
+import { PropertyListItem } from "../property-list-item";
 import { getCippFormatting } from "../../utils/get-cipp-formatting";
 import { Check as CheckIcon, Close as CloseIcon, Sync } from "@mui/icons-material";
 import { LinearProgressWithLabel } from "../linearProgressWithLabel";
@@ -60,7 +60,7 @@ export const CippExchangeInfoCard = (props) => {
           </Stack>
         }
       />
-      {exchangeData?.BlockedForSpam ? (
+      {exchangeData?.BlockedForSpam === true ? (
         <Alert severity="warning" sx={{ mx: 2, mt: 2, mb: 2 }}>
           This mailbox is currently blocked for spam.
         </Alert>
@@ -89,7 +89,7 @@ export const CippExchangeInfoCard = (props) => {
                   <Typography variant="inherit">
                     {getCippFormatting(
                       exchangeData?.HiddenFromAddressLists,
-                      "HiddenFromAddressLists"
+                      "HiddenFromAddressLists",
                     )}
                   </Typography>
                 </Grid>
@@ -99,6 +99,14 @@ export const CippExchangeInfoCard = (props) => {
                   </Typography>
                   <Typography variant="inherit">
                     {getCippFormatting(exchangeData?.BlockedForSpam, "BlockedForSpam")}
+                  </Typography>
+                </Grid>
+                <Grid size={{ xs: 12, md: 12 }}>
+                  <Typography variant="inherit" color="text.primary" gutterBottom>
+                    Retention Policy:
+                  </Typography>
+                  <Typography variant="inherit">
+                    {getCippFormatting(exchangeData?.RetentionPolicy, "RetentionPolicy")}
                   </Typography>
                 </Grid>
               </Grid>
@@ -116,13 +124,13 @@ export const CippExchangeInfoCard = (props) => {
                 sx={{ width: "100%" }}
                 variant="determinate"
                 addedLabel={`(${Math.round(exchangeData.TotalItemSize)} GB of ${Math.round(
-                  exchangeData?.ProhibitSendReceiveQuota
+                  exchangeData?.ProhibitSendReceiveQuota,
                 )}GB)`}
                 value={
                   Math.round(
                     (exchangeData?.TotalItemSize / exchangeData?.ProhibitSendReceiveQuota) *
                       100 *
-                      100
+                      100,
                   ) / 100
                 }
               />
@@ -146,12 +154,39 @@ export const CippExchangeInfoCard = (props) => {
                 let cleanAddress = "";
 
                 if (forwardingAddress) {
-                  if (forwardingAddress.startsWith("smtp:")) {
-                    forwardingType = "External";
-                    cleanAddress = forwardingAddress.replace("smtp:", "");
-                  } else {
+                  // Handle array of forwarding addresses
+                  if (Array.isArray(forwardingAddress)) {
+                    cleanAddress = forwardingAddress
+                      .map((addr) =>
+                        typeof addr === "string" ? addr.replace(/^smtp:/i, "") : String(addr),
+                      )
+                      .join(", ");
+                    // Check if any address has smtp: prefix (external) or contains @ (external email)
+                    forwardingType = forwardingAddress.some(
+                      (addr) =>
+                        (typeof addr === "string" && addr.toLowerCase().startsWith("smtp:")) ||
+                        (typeof addr === "string" && addr.includes("@")),
+                    )
+                      ? "External"
+                      : "Internal";
+                  }
+                  // Handle single string address
+                  else if (typeof forwardingAddress === "string") {
+                    if (forwardingAddress.startsWith("smtp:")) {
+                      forwardingType = "External";
+                      cleanAddress = forwardingAddress.replace(/^smtp:/i, "");
+                    } else if (forwardingAddress.includes("@")) {
+                      forwardingType = "External";
+                      cleanAddress = forwardingAddress;
+                    } else {
+                      forwardingType = "Internal";
+                      cleanAddress = forwardingAddress;
+                    }
+                  }
+                  // Fallback for other types
+                  else {
                     forwardingType = "Internal";
-                    cleanAddress = forwardingAddress;
+                    cleanAddress = String(forwardingAddress);
                   }
                 }
 
@@ -217,7 +252,7 @@ export const CippExchangeInfoCard = (props) => {
                       <Typography variant="inherit">
                         {getCippFormatting(
                           exchangeData?.AutoExpandingArchive,
-                          "AutoExpandingArchive"
+                          "AutoExpandingArchive",
                         )}
                       </Typography>
                     </Grid>
